@@ -1,0 +1,109 @@
+##############################################################################################
+#                                                                                            #
+# Note: This kubernetes file is used to automate deployment of drupal with postgress DB.     #
+# Author : Hirendra Koche                                                                    #
+# version : 1.0                     # Kubernetes file version                                #
+#                                                                                            #
+# Setup config -                                                                             #
+#   Database : postgress                                                                     #
+#   Database Name : drupal                                                                   #
+#   Database pass : drupal                                                                   #
+#   Database Host : postgress                                                                #
+#                                                                                            #
+# Access via "http://localhost:8080"                                                         #
+# (or "http://$(docker-machine ip):8080" if using docker-machine)                            #
+#                                                                                            #
+##############################################################################################
+
+# Namespace resouce for drupal
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: drupal
+
+---
+# Deployment resource for drupal web app
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: drupal
+  labels:
+    app: drupal
+  namespace: drupal
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: drupal
+    spec:
+      containers:
+      - name: drupal
+        image: drupal:latest
+        ports:
+        - containerPort: 80
+
+---
+# service resource of drupal web app
+apiVersion: v1
+kind: Service
+metadata:
+  name: drupal
+  namespace: drupal
+spec:
+  type: LoadBalancer
+  selector:
+    app: drupal
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 80
+#status:
+#  loadBalancer:
+#    ingress:
+#      - hostname: localhost
+
+---
+# Deployment resource of postgres db
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: drupal-db
+  namespace: drupal
+spec:
+  selector:
+    matchLabels:
+      app: drupal-db
+  template:
+    metadata:
+      labels:
+        app: drupal-db
+    spec:
+      containers:
+        - name: drupal-db
+          image: postgres:10
+          env:
+            - name: POSTGRES_USER
+              value: drupal
+            - name: POSTGRES_DB
+              value: drupal-db
+            - name: POSTGRES_PASSWORD
+              value: drupal
+          ports:
+          - containerPort: 5432
+        
+---
+# service resource of postgres db
+apiVersion: v1
+kind: Service
+metadata:
+  name: drupal-db
+  namespace: drupal
+spec:
+  selector:
+    app: drupal-db
+  ports:
+    - port: 5432
+      protocol: TCP
+      targetPort: 5432

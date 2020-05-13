@@ -1,0 +1,102 @@
+##############################################################################################
+#                                                                                            #
+# Note: This docker compose is used to automate deployment of drupal with postgress DB.      #
+# Author : Hirendra Koche                                                                    #
+# version : 1.0                     # compose file version                                   #
+#                                                                                            #
+# Setup config -                                                                             #
+#   Database : postgress                                                                     #
+#   Database Name : drupal                                                                   #
+#   Database pass : drupal                                                                   #
+#   Database Host : postgress                                                                #
+#                                                                                            #
+# Access via "http://localhost:8080"                                                         #
+# (or "http://$(docker-machine ip):8080" if using docker-machine)                            #
+#                                                                                            #
+##############################################################################################
+
+
+# version of docker compose used
+version : '3.7'
+
+# services defination and depedancy
+services:
+  drupal:
+    image: drupal:latest
+    ports:
+        - 8080:80
+    networks:
+      - drupal
+    volumes:
+      - type: volume
+        source: modules
+        target: /var/www/html/modules
+      - type: volume
+        source: profiles
+        target: /var/www/html/profiles
+      - type: volume
+        source: themes
+        target: /var/www/html/themes
+      - type: volume
+        source: sites
+        target: /var/www/html/sites
+    depends_on:
+      - postgres
+    deploy:
+      replicas: 2
+      placement:
+        constraints:
+          - "node.role!=manager"
+
+
+  postgres:
+    image: postgres:10
+    networks:
+      - drupal
+    secrets:
+      - drupal_pass
+    env_file:
+      - ./postgres.env
+    volumes:
+      - type: volume
+        source: psdata
+        target: /var/lib/postgresql/data
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - "node.role==manager"
+
+secrets:
+  drupal_pass:
+    file: ./drupal_pass
+
+volumes:
+  modules:
+    driver_opts:
+      type: "nfs"
+      o: "addr=10.128.0.21,rw"
+      device: ":/drupal/volume/app/modules" 
+  profiles:
+    driver_opts:
+      type: "nfs"
+      o: "addr=10.128.0.21,rw"
+      device: ":/drupal/volume/app/profiles"
+  themes:
+    driver_opts:
+      type: "nfs"
+      o: "addr=10.128.0.21,rw"
+      device: ":/drupal/volume/app/themes"
+  sites:
+    driver_opts:
+      type: "nfs"
+      o: "addr=10.128.0.21,rw"
+      device: ":/drupal/volume/app/sites"
+  psdata:
+
+
+networks: 
+  drupal:
+    driver: overlay
+ #   external: true
+    name: drupal
